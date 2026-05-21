@@ -1,6 +1,5 @@
 import http.server
 import socketserver
-import time
 from datetime import datetime
 
 PORT = 8000
