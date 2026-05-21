@@ -45,14 +45,19 @@ class MockLogHandler(http.server.SimpleHTTPRequestHandler):
         if self.path == "/laravel.log":
             self.send_response(200)
             self.send_header("Content-type", "text/plain")
-            # Dynamically replace timestamps to make them fresh
+            # Dynamically replace timestamps to make them fresh and distinct
+            from datetime import timedelta
             now = datetime.now()
+            t1 = (now - timedelta(minutes=20)).strftime("%Y-%m-%d %H:%M:%S")
+            t2 = (now - timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M:%S")
+            t3 = (now - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+            t4 = now.strftime("%Y-%m-%d %H:%M:%S")
+            
             log_data = MOCK_LOGS
-            # Adjust the text with current dates
-            log_data = log_data.replace("2026-05-21 12:00:00", now.strftime("%Y-%m-%d %H:%M:%S"))
-            log_data = log_data.replace("2026-05-21 12:05:12", now.strftime("%Y-%m-%d %H:%M:%S"))
-            log_data = log_data.replace("2026-05-21 12:15:30", now.strftime("%Y-%m-%d %H:%M:%S"))
-            log_data = log_data.replace("2026-05-21 12:22:45", now.strftime("%Y-%m-%d %H:%M:%S"))
+            log_data = log_data.replace("2026-05-21 12:00:00", t1)
+            log_data = log_data.replace("2026-05-21 12:05:12", t2)
+            log_data = log_data.replace("2026-05-21 12:15:30", t3)
+            log_data = log_data.replace("2026-05-21 12:22:45", t4)
             
             self.end_headers()
             self.wfile.write(log_data.encode("utf-8"))
