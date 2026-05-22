@@ -1,3 +1,14 @@
+---
+title: Rohitjains Log Analyzer Agent
+emoji: ⚡
+colorFrom: cyan
+colorTo: emerald
+sdk: streamlit
+sdk_version: 1.30.0
+app_file: app.py
+pinned: false
+---
+
 # Antigravity 2.0 - Laravel Log Analyzer Agent
 
 A privacy-first high-performance enterprise automation dashboard designed to scrape, parse, and analyze remote or local Laravel logs in real-time. Built with Polars for ultra-fast multi-threaded log filtering, and Streamlit for a premium developer UI.
