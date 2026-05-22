@@ -443,16 +443,28 @@ st.markdown("""
 # ----------------- PARSING ENGINE (POLARS ONLY) -----------------
 def parse_laravel_logs(log_text: str) -> pl.DataFrame:
     """
-    Parses Laravel logs using regular expressions and returns a Polars DataFrame.
-    Laravel pattern: [YYYY-MM-DD HH:MM:SS] environment.level: message [stacktrace]
+    Parses logs from multiple technologies (Laravel, PHP, Python, NodeJS, .NET, Java, Go, HTML)
+    using regular expressions and returns a Polars DataFrame.
     """
-    # Regex to capture: [timestamp] environment.level: message
-    # And lazily capture all content up to the next timestamp or end of file.
-    pattern = re.compile(
-        r'^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\s+([a-zA-Z0-9_-]+\.[A-Z]+):\s+(.*?)(?=\n^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|\Z)',
-        re.MULTILINE | re.DOTALL
-    )
-    
+    text_lower = log_text.lower()
+    tech = "generic"
+    if any(k in text_lower for k in ["laravel", "artisan", "eloquent"]):
+        tech = "laravel"
+    elif "traceback (most recent call last):" in text_lower or ".py\", line " in text_lower or ".py:" in text_lower:
+        tech = "python"
+    elif "node_modules" in text_lower or (re.search(r'\b(TypeError|ReferenceError|SyntaxError|RangeError)\b', log_text) and "at " in text_lower) or ".js:" in text_lower or ".ts:" in text_lower:
+        tech = "nodejs"
+    elif "system.nullreferenceexception" in text_lower or "system.argumentnullexception" in text_lower or re.search(r'in [\w\:\\]+\.cs:line \d+', log_text):
+        tech = "dotnet"
+    elif "nullpointerexception" in text_lower or "noclassdeffounderror" in text_lower or ".java:" in text_lower:
+        tech = "java"
+    elif "panic: runtime error" in text_lower or "goroutine " in text_lower:
+        tech = "go"
+    elif "php fatal error" in text_lower or "php warning" in text_lower or "php notice" in text_lower or ".php on line" in text_lower:
+        tech = "php"
+    elif "doctype html" in text_lower or "<html>" in text_lower or "cors policy" in text_lower or "domexception" in text_lower:
+        tech = "html"
+        
     timestamps = []
     dates = []
     environments = []
@@ -463,55 +475,323 @@ def parse_laravel_logs(log_text: str) -> pl.DataFrame:
     line_numbers = []
     messages = []
     full_texts = []
-    
-    for match in pattern.finditer(log_text):
-        ts = match.group(1)
-        env_lvl = match.group(2)
-        body = match.group(3).strip()
-        
-        # Date extraction
-        dt_str = ts.split(" ")[0]
-        
-        # Split environment & level
-        if "." in env_lvl:
-            env, lvl = env_lvl.split(".", 1)
-        else:
-            env, lvl = "local", env_lvl
+
+    if tech == "laravel":
+        pattern = re.compile(
+            r'^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\s+([a-zA-Z0-9_-]+\.[A-Z]+):\s+(.*?)(?=\n^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|\Z)',
+            re.MULTILINE | re.DOTALL
+        )
+        for match in pattern.finditer(log_text):
+            ts = match.group(1)
+            env_lvl = match.group(2)
+            body = match.group(3).strip()
             
-        # Message is first line
-        lines = body.split("\n", 1)
-        msg = lines[0]
-        
-        # Exception type extraction
-        err_type = "Generic Exception"
-        type_match = re.match(r'^\\?([a-zA-Z0-9_\\]+(?:Exception|Error|FatalError))\b', msg)
-        if type_match:
-            err_type = type_match.group(1).split('\\')[-1]
+            dt_str = ts.split(" ")[0]
+            if "." in env_lvl:
+                env, lvl = env_lvl.split(".", 1)
+            else:
+                env, lvl = "local", env_lvl
+                
+            lines = body.split("\n", 1)
+            msg = lines[0]
             
-        # File & line number extraction
-        file_match = re.search(r'([\w\.\-\/\\]+\.php)(?::|\s+line\s+|\()(\d+)', body)
-        if file_match:
-            f_path = file_match.group(1)
-            line_no = int(file_match.group(2))
+            err_type = "Generic Exception"
+            type_match = re.match(r'^\\?([a-zA-Z0-9_\\]+(?:Exception|Error|FatalError))\b', msg)
+            if type_match:
+                err_type = type_match.group(1).split('\\')[-1]
+                
+            file_match = re.search(r'([\w\.\-\/\\]+\.php)(?::|\s+line\s+|\()(\d+)', body)
+            if file_match:
+                f_path = file_match.group(1)
+                line_no = int(file_match.group(2))
+                f_name = os.path.basename(f_path)
+            else:
+                f_path = "Unknown File"
+                f_name = "Unknown File"
+                line_no = 0
+                
+            timestamps.append(ts)
+            dates.append(dt_str)
+            environments.append(env)
+            levels.append(lvl)
+            error_types.append(err_type)
+            file_names.append(f_name)
+            file_paths.append(f_path)
+            line_numbers.append(line_no)
+            messages.append(msg)
+            full_texts.append(f"[{ts}] {env_lvl}: {body}")
+
+    elif tech == "python":
+        pattern = re.compile(
+            r'((?:Traceback \(most recent call last\):|File ".*?").*?(?=\n(?:Traceback \(most recent call last\):|File ".*?")|\Z))',
+            re.MULTILINE | re.DOTALL
+        )
+        blocks = pattern.findall(log_text)
+        for block in blocks:
+            block = block.strip()
+            if not block:
+                continue
+            lines = block.splitlines()
+            msg = lines[-1]
+            err_type = "Python Error"
+            type_match = re.match(r'^([a-zA-Z0-9_]+Error|Exception):\s*(.*)', msg)
+            if type_match:
+                err_type = type_match.group(1)
+            
+            file_matches = list(re.finditer(r'File "([^"]+)", line (\d+), in (\w+)', block))
+            if file_matches:
+                last_match = file_matches[-1]
+                f_path = last_match.group(1)
+                line_no = int(last_match.group(2))
+                f_name = os.path.basename(f_path)
+            else:
+                f_path = "Unknown File"
+                f_name = "Unknown File"
+                line_no = 0
+                
+            ts_match = re.search(r'\[?(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})\]?', block)
+            ts = ts_match.group(1) if ts_match else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            dt_str = ts.split(" ")[0] if " " in ts else ts.split("T")[0]
+            
+            timestamps.append(ts)
+            dates.append(dt_str)
+            environments.append("local")
+            levels.append("ERROR")
+            error_types.append(err_type)
+            file_names.append(f_name)
+            file_paths.append(f_path)
+            line_numbers.append(line_no)
+            messages.append(msg)
+            full_texts.append(block)
+
+    elif tech == "nodejs":
+        pattern = re.compile(
+            r'((?:\b[a-zA-Z0-9_]+Error|Error|Exception\b):\s+.*?(?=\n(?:\b[a-zA-Z0-9_]+Error|Error|Exception\b):\s+|\Z))',
+            re.MULTILINE | re.DOTALL
+        )
+        blocks = pattern.findall(log_text)
+        for block in blocks:
+            block = block.strip()
+            if not block:
+                continue
+            lines = block.splitlines()
+            msg = lines[0]
+            err_type = "NodeJS Error"
+            type_match = re.match(r'^([a-zA-Z0-9_]+Error|Error):\s*(.*)', msg)
+            if type_match:
+                err_type = type_match.group(1)
+                
+            file_match = re.search(r'at\s+.*?\((.*?):(\d+):(\d+)\)|at\s+(.*?):(\d+):(\d+)', block)
+            if file_match:
+                f_path = file_match.group(1) or file_match.group(4)
+                line_no = int(file_match.group(2) or file_match.group(5))
+                f_name = os.path.basename(f_path)
+            else:
+                f_path = "Unknown File"
+                f_name = "Unknown File"
+                line_no = 0
+                
+            ts_match = re.search(r'\[?(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})\]?', block)
+            ts = ts_match.group(1) if ts_match else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            dt_str = ts.split(" ")[0] if " " in ts else ts.split("T")[0]
+            
+            timestamps.append(ts)
+            dates.append(dt_str)
+            environments.append("local")
+            levels.append("ERROR")
+            error_types.append(err_type)
+            file_names.append(f_name)
+            file_paths.append(f_path)
+            line_numbers.append(line_no)
+            messages.append(msg)
+            full_texts.append(block)
+
+    elif tech == "dotnet":
+        pattern = re.compile(
+            r'((?:System\.[a-zA-Z0-9_\.]+Exception|Exception):\s+.*?(?=\n(?:System\.[a-zA-Z0-9_\.]+Exception|Exception):\s+|\Z))',
+            re.MULTILINE | re.DOTALL
+        )
+        blocks = pattern.findall(log_text)
+        for block in blocks:
+            block = block.strip()
+            if not block:
+                continue
+            lines = block.splitlines()
+            msg = lines[0]
+            err_type = "DotNet Exception"
+            type_match = re.match(r'^([a-zA-Z0-9_\.]+Exception):\s*(.*)', msg)
+            if type_match:
+                err_type = type_match.group(1).split('.')[-1]
+                
+            file_match = re.search(r'in\s+([\w\.\-\/\\:]+\.cs):line\s+(\d+)', block)
+            if file_match:
+                f_path = file_match.group(1)
+                line_no = int(file_match.group(2))
+                f_name = os.path.basename(f_path)
+            else:
+                f_path = "Unknown File"
+                f_name = "Unknown File"
+                line_no = 0
+                
+            ts_match = re.search(r'\[?(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})\]?', block)
+            ts = ts_match.group(1) if ts_match else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            dt_str = ts.split(" ")[0] if " " in ts else ts.split("T")[0]
+            
+            timestamps.append(ts)
+            dates.append(dt_str)
+            environments.append("local")
+            levels.append("ERROR")
+            error_types.append(err_type)
+            file_names.append(f_name)
+            file_paths.append(f_path)
+            line_numbers.append(line_no)
+            messages.append(msg)
+            full_texts.append(block)
+
+    elif tech == "java":
+        pattern = re.compile(
+            r'((?:\b[a-zA-Z0-9_\.]+Exception|Exception\b):\s+.*?(?=\n(?:\b[a-zA-Z0-9_\.]+Exception|Exception\b):\s+|\Z))',
+            re.MULTILINE | re.DOTALL
+        )
+        blocks = pattern.findall(log_text)
+        for block in blocks:
+            block = block.strip()
+            if not block:
+                continue
+            lines = block.splitlines()
+            msg = lines[0]
+            err_type = "Java Exception"
+            type_match = re.match(r'^([a-zA-Z0-9_\.]+Exception):\s*(.*)', msg)
+            if type_match:
+                err_type = type_match.group(1).split('.')[-1]
+                
+            file_match = re.search(r'at\s+[\w\.]+\.([\w]+)\(([\w\.\-]+\.java):(\d+)\)', block)
+            if file_match:
+                f_name = file_match.group(2)
+                f_path = file_match.group(2)
+                line_no = int(file_match.group(3))
+            else:
+                f_path = "Unknown File"
+                f_name = "Unknown File"
+                line_no = 0
+                
+            ts_match = re.search(r'\[?(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})\]?', block)
+            ts = ts_match.group(1) if ts_match else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            dt_str = ts.split(" ")[0] if " " in ts else ts.split("T")[0]
+            
+            timestamps.append(ts)
+            dates.append(dt_str)
+            environments.append("local")
+            levels.append("ERROR")
+            error_types.append(err_type)
+            file_names.append(f_name)
+            file_paths.append(f_path)
+            line_numbers.append(line_no)
+            messages.append(msg)
+            full_texts.append(block)
+
+    elif tech == "go":
+        pattern = re.compile(
+            r'(panic:\s+.*?(?=\npanic:\s+|\Z))',
+            re.MULTILINE | re.DOTALL
+        )
+        blocks = pattern.findall(log_text)
+        for block in blocks:
+            block = block.strip()
+            if not block:
+                continue
+            lines = block.splitlines()
+            msg = lines[0]
+            err_type = "Go Panic"
+            
+            file_match = re.search(r'([\w\.\-\/\\:]+\.go):(\d+)', block)
+            if file_match:
+                f_path = file_match.group(1)
+                line_no = int(file_match.group(2))
+                f_name = os.path.basename(f_path)
+            else:
+                f_path = "Unknown File"
+                f_name = "Unknown File"
+                line_no = 0
+                
+            ts_match = re.search(r'\[?(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})\]?', block)
+            ts = ts_match.group(1) if ts_match else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            dt_str = ts.split(" ")[0] if " " in ts else ts.split("T")[0]
+            
+            timestamps.append(ts)
+            dates.append(dt_str)
+            environments.append("local")
+            levels.append("PANIC")
+            error_types.append(err_type)
+            file_names.append(f_name)
+            file_paths.append(f_path)
+            line_numbers.append(line_no)
+            messages.append(msg)
+            full_texts.append(block)
+
+    elif tech == "php":
+        pattern = re.compile(
+            r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\s+PHP\s+([A-Za-z\s]+):\s+(.*?)\s+in\s+([\w\.\-\/\\:]+)\s+on\s+line\s+(\d+)',
+            re.MULTILINE
+        )
+        for match in pattern.finditer(log_text):
+            ts = match.group(1)
+            lvl = match.group(2).strip().upper()
+            msg = match.group(3).strip()
+            f_path = match.group(4)
+            line_no = int(match.group(5))
             f_name = os.path.basename(f_path)
-        else:
-            f_path = "Unknown File"
-            f_name = "Unknown File"
-            line_no = 0
             
-        timestamps.append(ts)
-        dates.append(dt_str)
-        environments.append(env)
-        levels.append(lvl)
-        error_types.append(err_type)
-        file_names.append(f_name)
-        file_paths.append(f_path)
-        line_numbers.append(line_no)
-        messages.append(msg)
-        full_texts.append(f"[{ts}] {env_lvl}: {body}")
-        
+            dt_str = ts.split(" ")[0]
+            err_type = "PHP Error"
+            
+            timestamps.append(ts)
+            dates.append(dt_str)
+            environments.append("local")
+            levels.append(lvl)
+            error_types.append(err_type)
+            file_names.append(f_name)
+            file_paths.append(f_path)
+            line_numbers.append(line_no)
+            messages.append(msg)
+            full_texts.append(match.group(0))
+
+    elif tech == "html":
+        lines = [line.strip() for line in log_text.splitlines() if line.strip()]
+        for line in lines:
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            dt_str = ts.split(" ")[0]
+            err_type = "HTML/CSS Error"
+            if "cors" in line.lower() or "access-control-allow-origin" in line.lower():
+                err_type = "CORS Access Blocked"
+            elif "404" in line.lower() or "not found" in line.lower():
+                err_type = "Asset Load Failure"
+            elif "dom" in line.lower() or "queryselector" in line.lower() or "addeventlistener" in line.lower():
+                err_type = "DOMException"
+                
+            file_match = re.search(r'([\w\.\-\/\\]+\.(?:html|htm|css|js|png|jpg|gif|svg|ico))', line)
+            if file_match:
+                f_path = file_match.group(1)
+                f_name = os.path.basename(f_path)
+            else:
+                f_path = "Unknown File"
+                f_name = "Unknown File"
+                
+            line_match = re.search(r'(?::|\bline\b\s*)(\d+)', line)
+            line_no = int(line_match.group(1)) if line_match else 0
+            
+            timestamps.append(ts)
+            dates.append(dt_str)
+            environments.append("local")
+            levels.append("ERROR")
+            error_types.append(err_type)
+            file_names.append(f_name)
+            file_paths.append(f_path)
+            line_numbers.append(line_no)
+            messages.append(line)
+            full_texts.append(line)
+
     if not timestamps:
-        # Fallback if logs don't match the regex perfectly
         lines = [line.strip() for line in log_text.splitlines() if line.strip()]
         if lines:
             for line in lines:
@@ -527,21 +807,21 @@ def parse_laravel_logs(log_text: str) -> pl.DataFrame:
                 line_numbers.append(0)
                 messages.append(line)
                 full_texts.append(line)
-        else:
-            return pl.DataFrame({
-                "timestamp": pl.Series([], dtype=pl.Utf8),
-                "date": pl.Series([], dtype=pl.Utf8),
-                "environment": pl.Series([], dtype=pl.Utf8),
-                "level": pl.Series([], dtype=pl.Utf8),
-                "error_type": pl.Series([], dtype=pl.Utf8),
-                "file_name": pl.Series([], dtype=pl.Utf8),
-                "file_path": pl.Series([], dtype=pl.Utf8),
-                "line_number": pl.Series([], dtype=pl.Int64),
-                "exception_message": pl.Series([], dtype=pl.Utf8),
-                "full_text": pl.Series([], dtype=pl.Utf8)
-            })
 
-    # Build Polars DataFrame
+    if not timestamps:
+        return pl.DataFrame({
+            "timestamp": pl.Series([], dtype=pl.Utf8),
+            "date": pl.Series([], dtype=pl.Utf8),
+            "environment": pl.Series([], dtype=pl.Utf8),
+            "level": pl.Series([], dtype=pl.Utf8),
+            "error_type": pl.Series([], dtype=pl.Utf8),
+            "file_name": pl.Series([], dtype=pl.Utf8),
+            "file_path": pl.Series([], dtype=pl.Utf8),
+            "line_number": pl.Series([], dtype=pl.Int64),
+            "exception_message": pl.Series([], dtype=pl.Utf8),
+            "full_text": pl.Series([], dtype=pl.Utf8)
+        })
+
     df = pl.DataFrame({
         "timestamp": timestamps,
         "date": dates,
@@ -555,7 +835,6 @@ def parse_laravel_logs(log_text: str) -> pl.DataFrame:
         "full_text": full_texts
     })
     
-    # Sort LIFO - newest first
     df = df.sort("timestamp", descending=True)
     return df
 
@@ -610,23 +889,320 @@ php artisan config:cache"""
     }
 ]
 
-def analyze_exception(message: str) -> dict:
-    """Matches the message against known Laravel paradigms."""
-    msg_lower = message.lower()
-    for p in PARADIGMS:
-        if any(kw in msg_lower for kw in p["keywords"]):
-            return p
-            
-    return {
-        "name": "Generic Laravel Exception / Runtime Error",
-        "explanation": "An unclassified exception was thrown. Review the raw traceback context in the LHS panel.",
-        "remediation": """# Clear general caches
-php artisan optimize:clear
-# Query system state
-php artisan about
-# Restart the Laravel queue worker (if running asynchronous jobs)
-php artisan queue:restart"""
-    }
+def analyze_exception(message: str, error_type: str = "", file_name: str = "", full_text: str = "") -> dict:
+    """Matches the message against known paradigms based on stack and technology."""
+    text_to_scan = f"{message} {error_type} {file_name} {full_text}".lower()
+    
+    # 1. Tech detection
+    tech = "generic"
+    file_lower = file_name.lower()
+    
+    if file_lower.endswith(".py") or ".py:" in text_to_scan or "traceback (most recent call last):" in text_to_scan or "pip install" in text_to_scan:
+        tech = "python"
+    elif file_lower.endswith(".cs") or file_lower.endswith(".csproj") or file_lower.endswith(".sln") or ".cs:line" in text_to_scan or "system.nullreferenceexception" in text_to_scan or "dotnet build" in text_to_scan or "microsoft.aspnetcore" in text_to_scan:
+        tech = "dotnet"
+    elif file_lower.endswith(".java") or file_lower.endswith(".jar") or file_lower.endswith(".class") or "nullpointerexception" in text_to_scan or "noclassdeffounderror" in text_to_scan or "classpath" in text_to_scan:
+        tech = "java"
+    elif file_lower.endswith(".go") or "go.mod" in text_to_scan or "panic: runtime error" in text_to_scan or "goroutine " in text_to_scan:
+        tech = "go"
+    elif file_lower.endswith(".html") or file_lower.endswith(".htm") or "<html>" in text_to_scan or "doctype html" in text_to_scan or "domexception" in text_to_scan or "cors policy" in text_to_scan:
+        tech = "html"
+    elif file_lower.endswith(".js") or file_lower.endswith(".ts") or file_lower.endswith(".jsx") or file_lower.endswith(".tsx") or "node_modules" in text_to_scan or "package.json" in text_to_scan or "npm " in text_to_scan or "at object." in text_to_scan:
+        tech = "nodejs"
+    elif any(k in text_to_scan for k in ["laravel", "artisan", "eloquent"]):
+        tech = "laravel"
+    elif file_lower.endswith(".php") or "php fatal error" in text_to_scan or "php warning" in text_to_scan or "composer.json" in text_to_scan:
+        tech = "php"
+    else:
+        if "python" in text_to_scan or "django" in text_to_scan or "flask" in text_to_scan:
+            tech = "python"
+        elif "dotnet" in text_to_scan or "csharp" in text_to_scan:
+            tech = "dotnet"
+        elif "nodejs" in text_to_scan or "javascript" in text_to_scan or "typescript" in text_to_scan:
+            tech = "nodejs"
+        elif "java" in text_to_scan or "springboot" in text_to_scan or "spring boot" in text_to_scan:
+            tech = "java"
+        elif "golang" in text_to_scan or "go build" in text_to_scan:
+            tech = "go"
+        elif "composer" in text_to_scan or "symfony" in text_to_scan:
+            tech = "php"
+        elif "html" in text_to_scan or "css" in text_to_scan or "stylesheet" in text_to_scan:
+            tech = "html"
+
+    # 2. Technology-specific diagnostic matching
+    if tech == "python":
+        if "modulenotfounderror" in text_to_scan or "importerror" in text_to_scan or "no module named" in text_to_scan:
+            mod_match = re.search(r"no module named ['\"]?([a-zA-Z0-9_\-]+)['\"]?", text_to_scan)
+            mod_name = mod_match.group(1) if mod_match else "<package_name>"
+            return {
+                "name": f"Python Dependency Missing: '{mod_name}'",
+                "explanation": f"The Python interpreter could not locate the module '{mod_name}' in the current environment.",
+                "remediation": f"""# Install missing package via pip
+pip install {mod_name}
+# Or if using poetry / uv
+poetry add {mod_name} # Poetry
+uv add {mod_name}     # uv"""
+            }
+        elif "filenotfounderror" in text_to_scan or "ioerror" in text_to_scan or "no such file or directory" in text_to_scan:
+            return {
+                "name": "Python File Access / FileNotFoundError",
+                "explanation": "The script attempted to open or manipulate a file that does not exist at the specified target path.",
+                "remediation": f"""# Verify path existence in Python CLI
+python -c "import os; print(os.path.exists('path/to/file'))"
+# Check file read permissions
+ls -la {file_name if file_name != "Unknown File" else ""}"""
+            }
+        elif any(k in text_to_scan for k in ["connectionrefusederror", "operationalerror", "postgresql", "mysql", "sqlite3"]):
+            return {
+                "name": "Python Database Connection Refused",
+                "explanation": "Python failed to establish a network connection to your database server. DB port is offline or credentials mismatch.",
+                "remediation": """# Check local database service status
+sudo systemctl status postgresql # PostgreSQL
+# Validate environment configurations (e.g. settings.py or .env)
+# For Django, perform outstanding migrations:
+python manage.py migrate"""
+            }
+        elif "syntaxerror" in text_to_scan or "indentationerror" in text_to_scan:
+            return {
+                "name": "Python Syntax / Indentation Compilation Error",
+                "explanation": "The Python interpreter failed to parse the module due to improper indentation, syntax typos, or mismatched brackets.",
+                "remediation": f"""# Check module syntax structure
+python -m py_compile {file_name if file_name != "Unknown File" else "script.py"}"""
+            }
+        else:
+            return {
+                "name": f"Python {error_type if error_type else 'Runtime'} Exception",
+                "explanation": "A Python runtime error occurred. Review the exception trace details below.",
+                "remediation": f"""# Debug using Python Interactive PDB
+python -m pdb {file_name if file_name != "Unknown File" else "script.py"}
+# Check style lint rules
+ruff check ."""
+            }
+
+    elif tech == "nodejs":
+        if "cannot find module" in text_to_scan or "module_not_found" in text_to_scan:
+            mod_match = re.search(r"cannot find module ['\"]?([a-zA-Z0-9_\-/]+)['\"]?", text_to_scan)
+            mod_name = mod_match.group(1) if mod_match else "<package_name>"
+            return {
+                "name": f"Node.js Package Missing: '{mod_name}'",
+                "explanation": f"Node.js could not resolve the required module '{mod_name}'. The package is missing in node_modules.",
+                "remediation": f"""# Install package via npm/yarn/pnpm
+npm install {mod_name}
+# Or clean install dependencies from package-lock.json
+npm ci"""
+            }
+        elif "econnrefused" in text_to_scan or "mongodb" in text_to_scan or "mongoose" in text_to_scan or "redis" in text_to_scan:
+            return {
+                "name": "Node.js Network Socket / Connection Refused",
+                "explanation": "The Node.js runtime failed to connect to the SQL, MongoDB, Redis, or external HTTP server API.",
+                "remediation": """# Check if DB or target service is running locally
+sudo systemctl status mongod  # MongoDB
+sudo systemctl status redis   # Redis
+# Check environment variables in your active directory
+cat .env"""
+            }
+        elif "typeerror" in text_to_scan or "referenceerror" in text_to_scan or "cannot read properties" in text_to_scan:
+            return {
+                "name": "Node.js TypeError / Reference Variable Exception",
+                "explanation": "Accessing properties on an undefined or null variable, or calling an undefined object method.",
+                "remediation": """# Run TypeScript or ESLint compiler static checks
+npx eslint . --ext .js,.ts
+# Or run with Node debug inspector enabled:
+node --inspect-brk index.js"""
+            }
+        else:
+            return {
+                "name": f"NodeJS {error_type if error_type else 'Runtime'} Error",
+                "explanation": "An unhandled JavaScript runtime error occurred.",
+                "remediation": """# Run clean build check
+npm run build
+# Check dependencies health
+npm audit"""
+            }
+
+    elif tech == "dotnet":
+        if "nullreferenceexception" in text_to_scan:
+            return {
+                "name": ".NET C# NullReferenceException",
+                "explanation": "A reference variable in C# was dereferenced while pointing to null.",
+                "remediation": f"""# Build in Debug mode to locate local symbols
+dotnet build --configuration Debug
+# Use C# null-coalescing or null-conditional checks:
+# var name = obj?.Name ?? "Default";"""
+            }
+        elif "sqlexception" in text_to_scan or "dbupdateexception" in text_to_scan:
+            return {
+                "name": ".NET Entity Framework Database Exception",
+                "explanation": "A database query or schema modification transaction failed due to connection drops or constraints.",
+                "remediation": """# Update DB to latest migration schema
+dotnet ef database update
+# Validate connection strings in appsettings.json
+cat appsettings.json | grep -i ConnectionStrings"""
+            }
+        elif "filenotfoundexception" in text_to_scan or "directorynotfoundexception" in text_to_scan:
+            return {
+                "name": ".NET File System Resolution Failure",
+                "explanation": "The target assembly file or directory could not be located at runtime.",
+                "remediation": """# Restore NuGet dependencies packages
+dotnet restore
+# Clean compilation folder and build
+dotnet clean && dotnet build"""
+            }
+        else:
+            return {
+                "name": f".NET C# {error_type if error_type else 'Runtime'} Exception",
+                "explanation": "A .NET CLI or Web Host runtime exception was thrown.",
+                "remediation": """# Rebuild project
+dotnet build
+# Run unit tests to verify system state
+dotnet test"""
+            }
+
+    elif tech == "java":
+        if "nullpointerexception" in text_to_scan:
+            return {
+                "name": "Java NullPointerException (NPE)",
+                "explanation": "Code attempted to access variables or run methods on a null object instance.",
+                "remediation": """# Ensure you compile with full debug symbols:
+javac -g YourClass.java
+# Implement Defensive Guard checks or use java.util.Optional wrapper."""
+            }
+        elif "classnotfoundexception" in text_to_scan or "noclassdeffounderror" in text_to_scan:
+            return {
+                "name": "Java JVM Classpath Definition Failure",
+                "explanation": "The JVM classloader could not locate the compiled class binary on the system classpath.",
+                "remediation": """# Rebuild project dependencies and refresh cache
+mvn clean install   # Maven
+./gradlew build --refresh-dependencies # Gradle"""
+            }
+        elif "sqlexception" in text_to_scan:
+            return {
+                "name": "Java JDBC Database Exception",
+                "explanation": "A SQL database execution transaction or connection failed via JDBC driver.",
+                "remediation": """# Check JDBC driver jar is on classpath
+# Verify DB URL port bindings and firewall rules"""
+            }
+        else:
+            return {
+                "name": f"Java {error_type if error_type else 'JVM'} Exception",
+                "explanation": "A JVM compiler or thread execution runtime exception occurred.",
+                "remediation": """# Package project package structure
+mvn package
+# Run Java application debugger profile"""
+            }
+
+    elif tech == "go":
+        if "nil pointer dereference" in text_to_scan or "invalid memory address" in text_to_scan:
+            return {
+                "name": "Go (Golang) Nil Pointer Dereference",
+                "explanation": "The program panicked because it attempted to access a field or method on a nil pointer reference.",
+                "remediation": """# Build application binary with debug symbols enabled
+go build -gcflags="all=-N -l" -o app
+# Run with Go Delve debugger tool:
+dlv debug"""
+            }
+        elif "database is closed" in text_to_scan or "bad connection" in text_to_scan:
+            return {
+                "name": "Go Database Driver Connection Drop",
+                "explanation": "An operation was attempted on a closed database connection or connection pool.",
+                "remediation": """# Check db.Ping() errors in your connection initiator
+# Verify import of SQL driver driver:
+# import _ "github.com/go-sql-driver/mysql\""""
+            }
+        else:
+            return {
+                "name": f"Go {error_type if error_type else 'Runtime'} Panic",
+                "explanation": "Go runtime panic thrown. Review stdout traceback details.",
+                "remediation": """# Check project imports and tidy modules dependencies
+go mod tidy
+# Run tests to pinpoint panic code segment
+go test ./..."""
+            }
+
+    elif tech == "php":
+        if "parse error" in text_to_scan or "syntax error" in text_to_scan:
+            return {
+                "name": "PHP Parser Syntax Error",
+                "explanation": "The PHP compiler failed to parse the file due to syntax issues (missing semicolons, mismatched brackets).",
+                "remediation": f"""# Check PHP script syntax errors via linter
+php -l {file_name if file_name != "Unknown File" else "your_file.php"}"""
+            }
+        elif "call to undefined function" in text_to_scan or "call to undefined method" in text_to_scan:
+            return {
+                "name": "PHP Undefined Reference Call",
+                "explanation": "Calling a method or function that has not been defined in scope or resolved by Composer.",
+                "remediation": """# Refresh Composer classmaps autoloader
+composer dump-autoload
+# Verify that the class is imported with 'use Namespace\\Class;'"""
+            }
+        elif "permission denied" in text_to_scan or "failed to open stream" in text_to_scan:
+            return {
+                "name": "PHP File Permissions Denied",
+                "explanation": "The PHP process (apache or php-fpm) doesn't have sufficient read/write rights for the directory.",
+                "remediation": """# Grant write access to web-server group
+sudo chmod -R 775 storage
+sudo chown -R www-data:www-data storage"""
+            }
+        else:
+            return {
+                "name": f"PHP {error_type if error_type else 'Runtime'} Error",
+                "explanation": "A PHP runtime exception occurred.",
+                "remediation": """# Check composer package packages versions
+composer install
+# Check apache / php-fpm system error log file
+tail -n 50 /var/log/apache2/error.log"""
+            }
+
+    elif tech == "html":
+        if "cors" in text_to_scan or "access-control-allow-origin" in text_to_scan:
+            return {
+                "name": "Frontend CORS Policy Blocked Access",
+                "explanation": "The web browser blocked a cross-origin HTTP request because the target server failed to return the correct 'Access-Control-Allow-Origin' header.",
+                "remediation": """# If configuring nginx proxy server, add header:
+# add_header 'Access-Control-Allow-Origin' '*';
+# Or verify your local backend server's CORS middleware configuration."""
+            }
+        elif "404" in text_to_scan or "not found" in text_to_scan or "failed to load resource" in text_to_scan:
+            return {
+                "name": "Frontend Asset Loading Failure (404)",
+                "explanation": "The browser failed to retrieve a referenced asset (e.g. stylesheet, script, image, or font) because the file path is incorrect.",
+                "remediation": f"""# Verify the asset file path exists in your public build folder:
+# Check reference in: {file_name if file_name != "Unknown File" else "index.html"}
+# Ensure absolute paths or build pipelines (Vite/Webpack) match the deployed directory."""
+            }
+        elif "domexception" in text_to_scan or "queryselector" in text_to_scan or "addeventlistener" in text_to_scan:
+            return {
+                "name": "HTML DOM Reference Reference Error",
+                "explanation": "A client-side script attempted to query or attach listener rules to an element that is missing or not yet loaded in the DOM tree.",
+                "remediation": """# Wrap script invocation inside DOMContentLoaded:
+# document.addEventListener('DOMContentLoaded', () => { ... });
+# Or ensure element checks are guarded: if (elem) { elem.addEventListener(...) }"""
+            }
+        else:
+            return {
+                "name": "HTML/CSS/JS Frontend Diagnostics Error",
+                "explanation": "A general frontend layout, rendering, or client-side script execution exception occurred.",
+                "remediation": """# Audit HTML markup validation rules
+npx html-validator-cli --file=index.html
+# Check script syntax errors via ESLint linter
+npx eslint src/"""
+            }
+
+    else:  # laravel / fallback
+        for p in PARADIGMS:
+            if any(kw in text_to_scan for kw in p["keywords"]):
+                return p
+                
+        return {
+            "name": "Generic Exception / Runtime Error",
+            "explanation": "An unclassified exception was thrown. Review the raw traceback context in the LHS panel.",
+            "remediation": """# Check local ports and server socket processes
+netstat -tulpn
+# Verify execution logs of system services
+tail -n 50 /var/log/syslog
+# Check permissions on current workspace
+ls -la"""
+        }
 
 # ----------------- WEBHOOK DISPATCHER -----------------
 def dispatch_webhook(webhook_url: str, timestamp: str, env_level: str, message: str, diagnosis: dict) -> bool:
@@ -1075,7 +1651,12 @@ if raw_logs_content:
                 st.code(selected_row["full_text"], language="text")
                 
                 # Analyze Paradigm
-                diagnosis = analyze_exception(selected_row["exception_message"])
+                diagnosis = analyze_exception(
+                    message=selected_row["exception_message"],
+                    error_type=selected_row["error_type"],
+                    file_name=selected_row["file_name"],
+                    full_text=selected_row["full_text"]
+                )
                 
                 st.markdown(f"#### 🔍 Diagnosis: **{diagnosis['name']}**")
                 st.info(diagnosis["explanation"])
