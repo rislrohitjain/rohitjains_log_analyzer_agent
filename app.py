@@ -747,7 +747,7 @@ if ingestion_mode == "🌐 Live Stream URL":
     with col_url:
         log_url = st.text_input(
             "Log Stream URL",
-            value="http://172.18.177.165/rsos/storage/laravel.log",
+            value="/static/sample_laravel.log",
             help="Input target laravel.log endpoint. Defaults to standard development node.",
             label_visibility="collapsed"
         )
@@ -766,14 +766,23 @@ if ingestion_mode == "🌐 Live Stream URL":
     
     if should_fetch:
         try:
-            with st.spinner(f"Scraping logs from: {target_url}..."):
-                response = requests.get(target_url, timeout=network_timeout)
-                if response.status_code == 200:
-                    raw_logs_content = response.text
-                else:
-                    fetch_error = f"HTTP Error {response.status_code}: Unable to read target stream."
+            if target_url.startswith("static/") or target_url.startswith("/static/"):
+                stripped_path = target_url.lstrip("/")
+                local_file_path = BASE_DIR / stripped_path
+                with st.spinner(f"Loading local static file: {local_file_path}..."):
+                    if local_file_path.exists():
+                        raw_logs_content = local_file_path.read_text(encoding="utf-8")
+                    else:
+                        fetch_error = f"Local File Not Found: {local_file_path}"
+            else:
+                with st.spinner(f"Scraping logs from: {target_url}..."):
+                    response = requests.get(target_url, timeout=network_timeout)
+                    if response.status_code == 200:
+                        raw_logs_content = response.text
+                    else:
+                        fetch_error = f"HTTP Error {response.status_code}: Unable to read target stream."
         except Exception as e:
-            fetch_error = f"Network Connection Failed: {str(e)}"
+            fetch_error = f"Ingestion Failed: {str(e)}"
             
         if fetch_error:
             st.error(f"⚠️ Failed to fetch remote log: {fetch_error}")
