@@ -284,20 +284,7 @@ if "raw_logs" not in st.session_state:
 if "last_fetched_url" not in st.session_state:
     st.session_state.last_fetched_url = ""
 
-# Main area target log URL input and Refresh button
-st.markdown("### 🔌 Log Stream Ingestion Source")
-col_url, col_btn = st.columns([5, 1], gap="medium")
-with col_url:
-    log_url = st.text_input(
-        "Log Stream URL",
-        value="http://172.18.177.165/rsos/storage/laravel.log",
-        help="Input target laravel.log endpoint. Defaults to standard development node.",
-        label_visibility="collapsed"
-    )
-with col_btn:
-    refresh_btn = st.button("🔄 Refresh", use_container_width=True, help="Force reload the Laravel log stream.")
-
-# Application controls in sidebar or top bar
+# Application controls in sidebar
 with st.sidebar:
     st.markdown("### Google Chat Integration")
     webhook_url = st.text_input(
@@ -309,59 +296,120 @@ with st.sidebar:
     )
     
     st.markdown("---")
+    st.markdown("### ⚙️ Network Settings")
+    network_timeout = st.slider(
+        "Read Timeout (seconds)",
+        min_value=2,
+        max_value=60,
+        value=10,
+        help="Adjust log fetching timeout limit to prevent slow connection drops."
+    )
+    
+    st.markdown("---")
     st.markdown("#### Test Environment Fallback")
-    use_mock = st.checkbox("Force Test Server Fallback", value=False, help="Connect to the local mock logs service running at http://localhost:8000/laravel.log")
+    use_mock = st.checkbox("Force Test Server Fallback", value=False, help="Connect to the local mock logs service running at http://127.0.0.1:8000/laravel.log")
 
-# Fetch and cache log streams safely
-raw_logs_content = ""
-fetch_error = ""
-
-# Determine target URL
-target_url = "http://localhost:8000/laravel.log" if use_mock else log_url
-
-# Trigger fetch only if no logs exist, URL changed, or refresh was pressed
-should_fetch = (
-    st.session_state.raw_logs == "" or 
-    st.session_state.last_fetched_url != target_url or 
-    refresh_btn
+# Ingestion Selection on main panel
+st.markdown("### 🔌 Log Ingestion Mode")
+ingestion_mode = st.radio(
+    "Choose how to load your logs:",
+    options=["🌐 Live Stream URL", "📤 Upload Log File"],
+    horizontal=True,
+    label_visibility="collapsed"
 )
 
-if should_fetch:
-    try:
-        with st.spinner(f"Scraping logs from: {target_url}..."):
-            response = requests.get(target_url, timeout=5)
-            if response.status_code == 200:
-                raw_logs_content = response.text
-            else:
-                fetch_error = f"HTTP Error {response.status_code}: Unable to read target stream."
-    except Exception as e:
-        fetch_error = f"Network Connection Failed: {str(e)}"
+raw_logs_content = ""
+fetch_error = ""
+is_fallback_active = False
 
-    # Fallback helper if main URL fails (adds extreme resilience and offline testing capability)
-    if fetch_error and not use_mock:
-        st.sidebar.warning(f"Failed to fetch remote log: {fetch_error}")
-        st.sidebar.info("Attempting local mock log fetcher fallback...")
+if ingestion_mode == "🌐 Live Stream URL":
+    col_url, col_btn = st.columns([5, 1], gap="medium")
+    with col_url:
+        log_url = st.text_input(
+            "Log Stream URL",
+            value="http://172.18.177.165/rsos/storage/laravel.log",
+            help="Input target laravel.log endpoint. Defaults to standard development node.",
+            label_visibility="collapsed"
+        )
+    with col_btn:
+        refresh_btn = st.button("🔄 Refresh Stream", use_container_width=True, help="Force reload the Laravel log stream.")
+        
+    # Determine target URL
+    target_url = "http://127.0.0.1:8000/laravel.log" if use_mock else log_url
+    
+    # Trigger fetch only if no logs exist, URL changed, or refresh was pressed
+    should_fetch = (
+        st.session_state.raw_logs == "" or 
+        st.session_state.last_fetched_url != target_url or 
+        refresh_btn
+    )
+    
+    if should_fetch:
         try:
-            fallback_resp = requests.get("http://localhost:8000/laravel.log", timeout=2)
-            if fallback_resp.status_code == 200:
-                raw_logs_content = fallback_resp.text
-                fetch_error = ""
-                st.sidebar.success("Successfully loaded mock log fallback (Local Server).")
-        except Exception:
-            # If no active mock server, load inline hardcoded sample logs
-            sample_fallback = """[2026-05-21 16:32:00] local.ERROR: PDOException: SQLSTATE[HY000] [2002] Connection refused {"exception":"[object] (PDOException(code: 2002): SQLSTATE[HY000] [2002] Connection refused at /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php:70)"}
+            with st.spinner(f"Scraping logs from: {target_url}..."):
+                response = requests.get(target_url, timeout=network_timeout)
+                if response.status_code == 200:
+                    raw_logs_content = response.text
+                else:
+                    fetch_error = f"HTTP Error {response.status_code}: Unable to read target stream."
+        except Exception as e:
+            fetch_error = f"Network Connection Failed: {str(e)}"
+            
+        if fetch_error:
+            st.error(f"⚠️ Failed to fetch remote log: {fetch_error}")
+            
+            # Show a troubleshooting helper
+            with st.expander("🔍 Connection Troubleshooting Guide", expanded=True):
+                st.markdown(f"""
+                **Why did the connection to `{target_url}` fail?**
+                1. **Read Timeout:** The server took longer than `{network_timeout}` seconds to respond. You can increase the **Read Timeout** in the sidebar.
+                2. **VPN Disconnected:** If the target host is on a corporate/private network, check if you need to connect to your VPN.
+                3. **Host Unreachable:** Verify if the IP/Domain is correct and accessible from your browser.
+                
+                **Alternatives:**
+                - Switch the Ingestion Mode to **Upload Log File** to analyze a local log.
+                - Check the **Force Test Server Fallback** box in the sidebar to run with mock logs.
+                """)
+            
+            # Load fallback mock logs to keep app alive
+            is_fallback_active = True
+            try:
+                fallback_resp = requests.get("http://127.0.0.1:8000/laravel.log", timeout=2)
+                if fallback_resp.status_code == 200:
+                    raw_logs_content = fallback_resp.text
+                    st.info("ℹ️ Successfully loaded mock log fallback (Local Server).")
+            except Exception:
+                sample_fallback = """[2026-05-21 16:32:00] local.ERROR: PDOException: SQLSTATE[HY000] [2002] Connection refused {"exception":"[object] (PDOException(code: 2002): SQLSTATE[HY000] [2002] Connection refused at /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php:70)"}
 [2026-05-21 16:35:12] production.ERROR: ErrorException: file_put_contents(/var/www/html/storage/framework/views/temp_views): Failed to open stream: Permission denied {"exception":"[object] (ErrorException(code: 0): file_put_contents...)"}
 [2026-05-21 16:40:45] staging.ERROR: RuntimeException: No application encryption key has been specified. {"exception":"[object] (RuntimeException(code: 0): No application encryption key has been specified.)"}"""
-            raw_logs_content = sample_fallback
-            fetch_error = ""
-            st.sidebar.success("Successfully loaded mock log fallback (Offline Static).")
-            
-    # Cache in session state
-    st.session_state.raw_logs = raw_logs_content
-    st.session_state.last_fetched_url = target_url
-else:
-    # Use cached logs
-    raw_logs_content = st.session_state.raw_logs
+                raw_logs_content = sample_fallback
+                st.info("ℹ️ Successfully loaded mock log fallback (Offline Static).")
+        
+        # Cache in session state
+        st.session_state.raw_logs = raw_logs_content
+        st.session_state.last_fetched_url = target_url
+    else:
+        # Use cached logs
+        raw_logs_content = st.session_state.raw_logs
+
+else:  # Upload Log File
+    uploaded_file = st.file_uploader(
+        "Upload a laravel.log file:",
+        type=["log", "txt"],
+        help="Analyze Laravel logs offline by uploading a log file."
+    )
+    if uploaded_file is not None:
+        raw_logs_content = uploaded_file.getvalue().decode("utf-8")
+        # Clear last fetched URL cache when working with uploaded files
+        st.session_state.last_fetched_url = "uploaded_file"
+        st.session_state.raw_logs = raw_logs_content
+    else:
+        st.info("Please upload a laravel.log file to begin analysis.")
+        raw_logs_content = ""
+
+# Visual banner for fallback
+if is_fallback_active:
+    st.warning("⚠️ Offline Mode: Displaying mock/cached logs due to connection failure to live stream.")
 
 # Grid layout definition
 col_lhs, col_rhs = st.columns([1, 1], gap="large")

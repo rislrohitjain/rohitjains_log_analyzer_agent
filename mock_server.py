@@ -68,7 +68,7 @@ class MockLogHandler(http.server.SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     with socketserver.TCPServer(("", PORT), MockLogHandler) as httpd:
-        print(f"Serving mock laravel.log at http://localhost:{PORT}/laravel.log")
+        print(f"Serving mock laravel.log at http://127.0.0.1:{PORT}/laravel.log")
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
