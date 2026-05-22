@@ -766,14 +766,21 @@ if ingestion_mode == "🌐 Live Stream URL":
     
     if should_fetch:
         try:
-            if target_url.startswith("static/") or target_url.startswith("/static/"):
-                stripped_path = target_url.lstrip("/")
-                local_file_path = BASE_DIR / stripped_path
-                with st.spinner(f"Loading local static file: {local_file_path}..."):
-                    if local_file_path.exists():
-                        raw_logs_content = local_file_path.read_text(encoding="utf-8")
-                    else:
-                        fetch_error = f"Local File Not Found: {local_file_path}"
+            is_static_file = False
+            static_rel_path = ""
+            if "static/" in target_url:
+                idx = target_url.find("static/")
+                static_rel_path = target_url[idx:]
+                is_static_file = True
+            elif target_url.startswith("/static/"):
+                static_rel_path = target_url.lstrip("/")
+                is_static_file = True
+                
+            local_file_path = BASE_DIR / static_rel_path if is_static_file else None
+            
+            if local_file_path and local_file_path.exists():
+                with st.spinner(f"Loading local static file: {local_file_path.name}..."):
+                    raw_logs_content = local_file_path.read_text(encoding="utf-8")
             else:
                 with st.spinner(f"Scraping logs from: {target_url}..."):
                     response = requests.get(target_url, timeout=network_timeout)
