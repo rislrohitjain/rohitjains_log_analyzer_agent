@@ -782,12 +782,15 @@ if ingestion_mode == "🌐 Live Stream URL":
                 with st.spinner(f"Loading local static file: {local_file_path.name}..."):
                     raw_logs_content = local_file_path.read_text(encoding="utf-8")
             else:
-                with st.spinner(f"Scraping logs from: {target_url}..."):
-                    response = requests.get(target_url, timeout=network_timeout)
-                    if response.status_code == 200:
-                        raw_logs_content = response.text
-                    else:
-                        fetch_error = f"HTTP Error {response.status_code}: Unable to read target stream."
+                if not (target_url.startswith("http://") or target_url.startswith("https://") or "://" in target_url):
+                    fetch_error = f"Local static log file not found at: {local_file_path if local_file_path else target_url}"
+                else:
+                    with st.spinner(f"Scraping logs from: {target_url}..."):
+                        response = requests.get(target_url, timeout=network_timeout)
+                        if response.status_code == 200:
+                            raw_logs_content = response.text
+                        else:
+                            fetch_error = f"HTTP Error {response.status_code}: Unable to read target stream."
         except Exception as e:
             fetch_error = f"Ingestion Failed: {str(e)}"
             

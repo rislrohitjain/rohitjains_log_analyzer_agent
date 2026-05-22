@@ -1,0 +1,132 @@
+# ========================================== 
+# CATEGORY: HTTP / Routing Errors
+# ========================================== 
+[2026-05-22 14:42:15] local.ERROR: Symfony\Component\HttpKernel\Exception\NotFoundHttpException:  {"exception":"[object] (Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException(code: 0):  at /var/www/html/vendor/laravel/framework/src/Illuminate/Routing/RouteCollection.php:258)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Routing/Router.php(648): Illuminate\\Routing\\RouteCollection->match(Object(Illuminate\\Http\\Request))
+#1 /var/www/html/vendor/laravel/framework/src/Illuminate/Routing/Router.php(637): Illuminate\\Routing\\Router->findRoute(Object(Illuminate\\Http\\Request))
+"}[cite: 1]
+[2026-05-22 14:44:30] production.ERROR: Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException: The POST method is not supported for this route. Supported methods: GET, HEAD. {"exception":"[object] (Symfony\\Component\\HttpKernel\\Exception\\MethodNotAllowedHttpException(code: 0): The POST method is not supported for this route. Supported methods: GET, HEAD. at /var/www/html/vendor/laravel/framework/src/Illuminate/Routing/RouteCollection.php:256)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Routing/Router.php(648): Illuminate\\Routing\\RouteCollection->match(Object(Illuminate\\Http\\Request))
+"}[cite: 1]
+[2026-05-22 14:46:45] staging.ERROR: Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException: This action is unauthorized. {"exception":"[object] (Symfony\\Component\\HttpKernel\\Exception\\AccessDeniedHttpException(code: 0): This action is unauthorized. at /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php:321)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Auth/Access/Gate.php(812): Handler->render()
+"}[cite: 1]
+[2026-05-22 14:49:00] local.ERROR: Symfony\Component\HttpKernel\Exception\HttpException: Too Many Requests {"exception":"[object] (Symfony\\Component\\HttpKernel\\Exception\\HttpException(code: 429): Too Many Requests at /var/www/html/vendor/laravel/framework/src/Illuminate/Routing/Middleware/ThrottleRequests.php:124)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Routing/Middleware/ThrottleRequests.php(67): Illuminate\\Routing\\Middleware\\ThrottleRequests->buildException('default', 60)
+"}[cite: 1]
+[2026-05-22 14:51:15] production.ERROR: Symfony\Component\HttpKernel\Exception\ServiceUnavailableException: The server is temporarily unable to service your request due to maintenance down time. {"exception":"[object] (Symfony\\Component\\HttpKernel\\Exception\\ServiceUnavailableException(code: 503): Service Unavailable at /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/CheckForMaintenanceMode.php:44)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(167): Illuminate\\Foundation\\Http\\Middleware\\CheckForMaintenanceMode->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+"}[cite: 1]
+
+# ========================================== 
+# CATEGORY: Security / Authentication / Sessions
+# ========================================== 
+[2026-05-22 14:53:30] production.ERROR: Illuminate\Session\TokenMismatchException:  {"exception":"[object] (Illuminate\Session\TokenMismatchException(code: 0):  at /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/VerifyCsrfToken.php:85)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/VerifyCsrfToken.php(42): Illuminate\Foundation\Http\Middleware\VerifyCsrfToken->handle(Object(Illuminate\Http\Request), Object(Closure))
+"}[cite: 1]
+[2026-05-22 14:55:45] staging.ERROR: Illuminate\Auth\AuthenticationException: Unauthenticated. {"exception":"[object] (Illuminate\Auth\AuthenticationException(code: 0): Unauthenticated. at /var/www/html/vendor/laravel/framework/src/Illuminate/Auth/SessionGuard.php:120)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Auth/Middleware/Authenticate.php(61): Illuminate\Auth\SessionGuard->authenticate()
+"}[cite: 1]
+[2026-05-22 14:58:00] local.WARNING: Illuminate\Auth\Access\AuthorizationException: This action is unauthorized. {"exception":"[object] (Illuminate\Auth\Access\AuthorizationException(code: 0): This action is unauthorized. at /var/www/html/vendor/laravel/framework/src/Illuminate/Auth/Access/Gate.php:420)
+[stacktrace]
+#0 /var/www/html/app/Http/Controllers/AdminController.php(18): Illuminate\Support\Facades\Gate->authorize('manage-settings')
+"}[cite: 1]
+[2026-05-22 15:00:15] local.ALERT: Security Notice: Multiple failed login attempts for username 'admin@domain.com' {"ip":"192.168.1.105","user_agent":"Mozilla/5.0","count":5}[cite: 1]
+[2026-05-22 15:02:30] production.CRITICAL: Illuminate\Contracts\Encryption\DecryptException: The payload is invalid. {"exception":"[object] (Illuminate\Contracts\Encryption\DecryptException(code: 0): The payload is invalid. at /var/www/html/vendor/laravel/framework/src/Illuminate/Encryption/Encrypter.php:215)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Cookie/Middleware/EncryptCookies.php(144): Illuminate\Encryption\Encrypter->decrypt('eyJpdiI6Ik9y...', false)
+"}[cite: 1]
+
+# ========================================== 
+# CATEGORY: Database / Query Failures
+# ========================================== 
+[2026-05-22 15:04:45] staging.ERROR: Illuminate\Database\QueryException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'user_profile_id' in 'field list' (SQL: select `user_profile_id`, `name` from `users` where `id` = 12 limit 1) {"exception":"[object] (Illuminate\Database\QueryException(code: 42S22): SQLSTATE[42S22]: Column not found: 1054 Unknown column 'user_profile_id' in 'field list' (SQL: select `user_profile_id` from `users` where `id` = 12 limit 1) at /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:671)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php(631): Illuminate\Database\Connection->runQueryCallback('select `user_pr...', Array, Object(Closure))
+"}[cite: 1]
+[2026-05-22 15:07:00] local.ERROR: Illuminate\Database\Eloquent\ModelNotFoundException: No query results for model [App\Models\Post] 404 {"exception":"[object] (Illuminate\Database\Eloquent\ModelNotFoundException(code: 0): No query results for model [App\Models\Post] 404 at /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:470)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php(438): Illuminate\\Database\\Eloquent\\Builder->firstOrFail()
+"}[cite: 1]
+[2026-05-22 15:09:15] production.ERROR: Illuminate\Database\QueryException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'user@example.com' for key 'users_email_unique' (SQL: insert into `users` (`name`, `email`, `password`) values ('Test', 'user@example.com', 'y$abc...')) {"exception":"[object] (Illuminate\Database\QueryException(code: 23000): Integrity constraint violation...)"}[cite: 1]
+[2026-05-22 15:11:30] production.CRITICAL: PDOException: SQLSTATE[HY000] [2002] Connection refused {"exception":"[object] (PDOException(code: 2002): SQLSTATE[HY000] [2002] Connection refused at /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php:70)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php(70): PDO->__construct('mysql:host=127....', 'forge', '', Array)
+"}[cite: 1]
+[2026-05-22 15:13:45] staging.ERROR: Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1205 Lock wait timeout exceeded; try restarting transaction (SQL: update `orders` set `status` = 'processing' where `id` = 455) {"exception":"[object] (Illuminate\Database\QueryException(code: HY000): Lock wait timeout exceeded...)"}[cite: 1]
+
+# ========================================== 
+# CATEGORY: Application Logic / Code Runtime Errors
+# ========================================== 
+[2026-05-22 15:16:00] local.ERROR: ErrorException: Attempt to read property "name" on null {"exception":"[object] (ErrorException(code: 0): Attempt to read property \"name\" on null at /var/www/html/app/Http/Controllers/UserController.php:24)
+[stacktrace]
+#0 /var/www/html/app/Http/Controllers/UserController.php(24): Illuminate\Foundation\Bootstrap\HandleExceptions->handleError(2, 'Attempt to read...', '/var/www/html/a...', 24)
+"}[cite: 1]
+[2026-05-22 15:18:15] local.ERROR: Error: Class "App\Http\Controllers\PaymentService" not found {"exception":"[object] (Error(code: 0): Class \"App\\Http\\Controllers\\PaymentService\" not found at /var/www/html/app/Http/Controllers/OrderController.php:32)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Routing/Controller.php(54): App\\Http\\Controllers\\OrderController->checkout(Object(Illuminate\\Http\\Request))
+"}[cite: 1]
+[2026-05-22 15:20:30] production.ERROR: ErrorException: Undefined array key "items" {"exception":"[object] (ErrorException(code: 0): Undefined array key \"items\" at /var/www/html/app/Http/Controllers/CartController.php:112)
+[stacktrace]
+#0 /var/www/html/app/Http/Controllers/CartController.php(112): Illuminate\Foundation\Bootstrap\HandleExceptions->handleError(2, 'Undefined array...', '/var/www/html/a...', 112)
+"}[cite: 1]
+[2026-05-22 15:22:45] staging.ERROR: BadMethodCallException: Method App\Models\User::nonExistentMethod does not exist. {"exception":"[object] (BadMethodCallException(code: 0): Method App\\Models\\User::nonExistentMethod does not exist. at /var/www/html/vendor/laravel/framework/src/Illuminate/Support/Traits/ForwardsCalls.php:23)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php(2116): Illuminate\\Database\\Eloquent\\Model->forwardCallToQueue('nonExistentMeth...', Array)
+"}[cite: 1]
+[2026-05-22 15:25:00] local.ERROR: TypeError: Argument 1 passed to App\Services\InvoiceService::generate() must be an instance of App\Models\Order, null given {"exception":"[object] (TypeError(code: 0): Argument 1 passed to App\\Services\\InvoiceService::generate() must be...)"}[cite: 1]
+
+# ========================================== 
+# CATEGORY: System / Environment / Configuration Failures
+# ========================================== 
+[2026-05-22 15:27:15] production.ERROR: ErrorException: file_put_contents(/var/www/html/storage/framework/views/w7f82h39): Failed to open stream: Permission denied {"exception":"[object] (ErrorException(code: 0): file_put_contents(/var/www/html/storage/framework/views/w7f82h39): Failed to open stream: Permission denied at /var/www/html/vendor/laravel/framework/src/Illuminate/Filesystem/Filesystem.php:150)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Filesystem/Filesystem.php(150): file_put_contents('/var/www/html/s...', '<?php...', 0)
+"}[cite: 1]
+[2026-05-22 15:29:30] production.ERROR: Symfony\Component\ErrorHandler\Error\FatalError: Allowed memory size of 134217728 bytes exhausted (tried to allocate 40960 bytes) {"exception":"[object] (Symfony\Component\ErrorHandler\Error\FatalError(code: 0): Allowed memory size of 134217728 bytes exhausted at /var/www/html/app/Http/Controllers/DashboardController.php:48)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(230): HandleExceptions->handleShutdown()
+"}[cite: 1]
+[2026-05-22 15:31:45] staging.ERROR: RuntimeException: No application encryption key has been specified. {"exception":"[object] (RuntimeException(code: 0): No application encryption key has been specified. at /var/www/html/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:85)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php(85): EncryptionServiceProvider->key(Array)
+"}[cite: 1]
+[2026-05-22 15:34:00] local.CRITICAL: RedisException: Connection refused {"exception":"[object] (RedisException(code: 0): Connection refused at /var/www/html/vendor/laravel/framework/src/Illuminate/Redis/Connectors/PhpRedisConnector.php:140)
+[stacktrace]
+#0 /var/www/html/vendor/laravel/framework/src/Illuminate/Redis/Connectors/PhpRedisConnector.php(140): Redis->connect('127.0.0.1', 6379, 0.0, NULL, 0, 0.0)
+"}[cite: 1]
+[2026-05-22 15:36:15] local.EMERGENCY: ErrorException: No space left on device {"exception":"[object] (ErrorException(code: 0): No space left on device at /var/www/html/vendor/laravel/framework/src/Illuminate/Log/LogManager.php:180)"}[cite: 1]
+
+# ========================================== 
+# CATEGORY: Third-Party Integrations / API Failures
+# ========================================== 
+[2026-05-22 15:38:30] production.CRITICAL: GuzzleHttp\Exception\ConnectException: cURL error 28: Connection timed out after 5001 milliseconds (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for https://api.stripe.com/v3/charges {"exception":"[object] (GuzzleHttp\Exception\ConnectException(code: 0): cURL error 28: Connection timed out...)"}[cite: 1]
+[2026-05-22 15:40:45] staging.ERROR: GuzzleHttp\Exception\ClientException: Client error: `POST https://api.sendgrid.com/v3/mail/send` responded with a 401 Unauthorized {"exception":"[object] (GuzzleHttp\Exception\ClientException(code: 401): Client error...)"}[cite: 1]
+[2026-05-22 15:43:00] local.WARNING: Sentry\Exception\JsonException: JSON encoding failed for Sentry payload {"exception":"[object] (Sentry\Exception\JsonException(code: 0): JSON encoding failed...)"}[cite: 1]
+[2026-05-22 15:45:15] production.ERROR: Laravel\Cashier\Exceptions\IncompletePayment: The payment attempt failed because it requires additional actions. {"exception":"[object] (Laravel\Cashier\Exceptions\IncompletePayment(code: 0): ...)"}[cite: 1]
+[2026-05-22 15:47:30] production.WARNING: App\Services\WeatherApi: Service returned partial or malformed payload. Fallback to cache used. {"payload":"{}"}[cite: 1]
+
+# ========================================== 
+# CATEGORY: Queue / Background Job / Console Logs
+# ========================================== 
+[2026-05-22 15:49:45] staging.NOTICE: Queue worker timeout exceeded for job [App\Jobs\ProcessVideo] running longer than 60 seconds. {"job_id":54910,\"queue\":\"default\"}[cite: 1]
+[2026-05-22 15:52:00] local.ERROR: Illuminate\Queue\MaxAttemptsExceededException: App\Jobs\SendWelcomeEmail has been attempted too many times or run too long. The job may have previously timed out. {"exception":"[object] (Illuminate\Queue\MaxAttemptsExceededException(code: 0): ...)"}[cite: 1]
+[2026-05-22 15:54:15] local.WARNING: Queue processing delayed due to database deadlocks. Retrying transaction. {"queue":"high-priority","attempt":2}[cite: 1]
+[2026-05-22 15:56:30] production.ERROR: Symfony\Component\Console\Exception\CommandNotFoundException: Command "schedule:runn" is not defined. Did you mean schedule:run? {"exception":"[object] (Symfony\Component\Console\Exception\CommandNotFoundException(code: 0): ...)"}[cite: 1]
+[2026-05-22 15:58:45] staging.INFO: Active cron schedules scanned. Total commands executed: 12. {"runtime_seconds":1.45}[cite: 1]
+
+# ========================================== 
+# CATEGORY: Application Performance / Warnings / Context Notices
+# ========================================== 
+[2026-05-22 16:01:00] local.WARNING: League\Flysystem\FileNotFoundException: File not found at path: exports/report_2026_05.csv {"exception":"[object] (League\\Flysystem\\FileNotFoundException(code: 0): File not found at path: exports/report_2026_05.csv)"}[cite: 1]
+[2026-05-22 16:03:15] production.ALERT: API Rate Limit hit aggressively by IP address {"ip":"203.0.113.195","requests_per_minute":450}[cite: 1]
+[2026-05-22 16:05:30] production.WARNING: Deprecated: Return type of App\Models\Metadata::offsetGet($offset) should either be compatible with ArrayAccess::offsetGet(mixed $offset): mixed, or the [\ReturnTypeWillChange] attribute should be used to temporarily suppress the notice[cite: 1]
+[2026-05-22 16:07:45] staging.NOTICE: High database compilation memory usage warning. Long running transactions detected. {"active_transactions":8}[cite: 1]
+[2026-05-22 16:10:00] local.INFO: User profile synchronization completed cleanly. {"synced_records":1420,"duration_ms":340}[cite: 1]
