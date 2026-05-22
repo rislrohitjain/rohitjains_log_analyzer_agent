@@ -280,9 +280,10 @@ st.markdown("<h1 class='header-title'>⚡ Antigravity 2.0 Log Analyzer Agent</h1
 
 # Initialize session state cache for logs
 if "raw_logs" not in st.session_state:
-    st.session_state.raw_logs = ""
+    st.session_state.raw_logs = """[2026-05-22 14:40:43] local.ERROR: PDOException: SQLSTATE[HY000] [2002] Connection refused {"exception":"[object] (PDOException(code: 2002): SQLSTATE[HY000] [2002] Connection refused at /var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php:70)"}
+[2026-05-22 14:45:43] production.ERROR: ErrorException: file_put_contents(/var/www/html/storage/framework/views/w7f82h39): Failed to open stream: Permission denied {"exception":"[object] (ErrorException(code: 0): file_put_contents...)"}"""
 if "last_fetched_url" not in st.session_state:
-    st.session_state.last_fetched_url = ""
+    st.session_state.last_fetched_url = "http://172.18.177.165/rsos/storage/laravel.log"
 
 # Application controls in sidebar
 with st.sidebar:
