@@ -126,3 +126,5 @@ venv.bak/
 
 # Mock log files for testing
 mock_laravel.log
+prompt.txt
+test_parser.py

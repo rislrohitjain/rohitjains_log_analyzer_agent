@@ -989,7 +989,7 @@ if raw_logs_content:
                         color_discrete_sequence=px.colors.sequential.Electric
                     )
                     fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=30, b=10))
-                    st.plotly_chart(fig_pie, use_container_width=True)
+                    st.plotly_chart(fig_pie, use_container_width=True, theme=None)
                     
                 with viz_col2:
                     # Exception Class Frequency (Bar)
@@ -1003,7 +1003,7 @@ if raw_logs_content:
                         color_discrete_sequence=["#06b6d4"]
                     )
                     fig_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=30, b=10))
-                    st.plotly_chart(fig_bar, use_container_width=True)
+                    st.plotly_chart(fig_bar, use_container_width=True, theme=None)
                     
                 # Time Trend Line
                 date_counts_filtered = df_filtered.group_by("date").agg(pl.len().alias("count")).sort("date")
@@ -1017,7 +1017,7 @@ if raw_logs_content:
                 )
                 fig_trend.update_traces(line=dict(color="#10b981", width=2.5))
                 fig_trend.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', height=220, margin=dict(l=10, r=10, t=30, b=10))
-                st.plotly_chart(fig_trend, use_container_width=True)
+                st.plotly_chart(fig_trend, use_container_width=True, theme=None)
             else:
                 st.info("Ingest data and refine criteria filter to display visualization studio.")
                 
